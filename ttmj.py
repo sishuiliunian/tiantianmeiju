@@ -74,8 +74,10 @@ def updatenew():
     for row in cur.fetchall():
         #print row
         try:
-            request = urllib2.Request(row[1])
-            response = urllib2.urlopen(request)
+            user_agent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/601.6.14 (KHTML, like Gecko) Version/9.1.1 Safari/601.6.14'
+            headers = { 'User-Agent' : user_agent}
+            request = urllib2.Request(row[1],headers = headers)
+            response = urllib2.urlopen(request,timeout=30)
         except urllib2.URLError, e:
             if hasattr(e, "code"):
                 print e.code
@@ -89,9 +91,9 @@ def updatenew():
         cur.execute("update tvinfo set tvnow=? where tvname = ?",(maxtv,row[0]))
         con.commit()
     con.close();
-
+'''
 def geturl():
-    '''抓出未观看的下载地址,并更新观看位置'''
+    抓出未观看的下载地址,并更新观看位置
     con = sqlite3.connect("ttmj.db")
     con.text_factory = str
     cur = con.cursor()
@@ -114,6 +116,67 @@ def geturl():
                 cur.execute("update tvinfo set tvposition=tvnow where active = 1")
                 con.commit()
     con.close();
+    '''
+def geturl():
+    '''抓出未观看的下载地址,并更新观看位置'''
+    con = sqlite3.connect("ttmj.db")
+    con.text_factory = str
+    cur = con.cursor()
+    cur.execute("select * from tvinfo where active = 1")
+    for row in cur.fetchall():
+        res = cmp(row[2], row[3])
+        if res < 0:
+            if row[3].split('E')[1] == 1: 
+                print row[0] + '开更啦！'
+
+            elif not row[2]:
+                print row[0]
+
+            print '最新剧集为:' + '第' + row[3].split('E')[1] + '集'
+            print "下载地址:\n"
+
+            try:
+                user_agent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/601.6.14 (KHTML, like Gecko) Version/9.1.1 Safari/601.6.14'
+                headers = { 'User-Agent' : user_agent}
+                request = urllib2.Request(row[1],headers = headers)
+                response = urllib2.urlopen(request,timeout=30)
+            except urllib2.URLError, e:
+                if hasattr(e, "code"):
+                    print e.code
+                if hasattr(e, "reason"):
+                    print e.reason
+            f = open("./ttmj.html","w+")
+            f.write(response.read())
+            if not row[2]:
+                for i in range(1,int(row[3].split('E')[1]) + 1):
+                    seq = row[3].split('E')[0] + 'E' + '%02d'%i
+                    print seq
+                    newpattern = re.compile('ed2k://.*?' + seq + '.*?/')
+                    f.seek(0)
+                    newitem = re.findall(newpattern, f.read())
+                    if len(newitem) > 0:
+                        print newitem[0]
+                    else:
+                        print "not found url"
+                    cur.execute("update tvinfo set tvposition=tvnow where active = 1")
+                    con.commit()
+            else:
+                for i in range(int(row[2].split('E')[1]) + 1,int(row[3].split('E')[1]) + 1):
+                    seq = row[3].split('E')[0] + 'E' + '%02d'%i
+                    print seq
+                    newpattern = re.compile('ed2k://.*?' + seq + '.*?/')
+                    f.seek(0)
+                    newitem = re.findall(newpattern, f.read())
+                    if len(newitem) > 0:
+                        print newitem[0]
+                    else:
+                        print "not found url"
+                    cur.execute("update tvinfo set tvposition=tvnow where active = 1")
+                    con.commit()
+            f.close()
+    con.close();
+
+
 
 if __name__ == "__main__":
     if len(sys.argv) > 1 :
